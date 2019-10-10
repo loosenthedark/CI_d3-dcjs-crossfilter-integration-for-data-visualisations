@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/dc/2.1.8/dc.min.css" type="text/css" />
+
+    <style type="text/css">
+        div {
+            clear: left;
+        }
+
+        #spend_per_person_per_store_stacked_chart.dc-chart .stack._0 rect.bar,
+        #spend_per_person_per_store_stacked_chart.dc-chart g.dc-legend g.dc-legend-item:first-child rect {
+            fill: darkgreen;
+        }
+
+        #spend_per_person_per_store_stacked_chart.dc-chart .stack._1 rect.bar,
+        #spend_per_person_per_store_stacked_chart.dc-chart g.dc-legend g.dc-legend-item:last-child rect {
+            fill: olivedrab;
+        }
+    </style>
+
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.17/d3.min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/crossfilter/1.3.12/crossfilter.min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/dc/2.1.8/dc.min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/queue-async/1.0.7/queue.min.js"></script>
+
+</head>
+
+<body>
+
+    <div>
+        <h3>Average Spend Per Person</h3>
+        <div id="spend_per_person_chart"></div>
+    </div>
+
+    <div>
+        <h3>Total Spend Per Store</h3>
+        <div id="spend_per_store_chart"></div>
+    </div>
+
+    <div>
+        <h3>Total Spend Per State</h3>
+        <div id="spend_per_state_chart"></div>
+    </div>
+
+    <div>
+        <h3>Total Spend Per Month</h3>
+        <div id="spend_per_month_chart"></div>
+    </div>
+
+    <div>
+        <h3>Total Spend Per Person Per Month</h3>
+        <div id="spend_per_person_per_month_composite_chart"></div>
+    </div>
+
+    <div>
+        <h3>Total Spend Per Person Per Store</h3>
+        <div id="spend_per_person_per_store_stacked_chart"></div>
+    </div>
+
+    <div>
+        <h3>Transaction Amounts Over Time (Scatterplot)</h3>
+        <div id="transactions_over_time_scatterplot"></div>
+    </div>
+
+    <div>
+        <h3>Proportion of Big (&ge; $150) Vs. Small (
+            < $150) Transactions</h3>
+                <div id="big_vs_small_transactions_chart"></div>
+    </div>
+
+    <script>
+        // var transactionsData = [
+        //     { "name": "Tom", "store": "Acme", "state": "NY", "spend": 100 },
+        //     { "name": "Tom", "store": "Big Co.", "state": "NY", "spend": 200 },
+        //     { "name": "Bob", "store": "Acme", "state": "FL", "spend": 150 },
+        //     { "name": "Bob", "store": "Acme", "state": "NY", "spend": 200 },
+        //     { "name": "Bob", "store": "Big Co.", "state": "FL", "spend": 50 },
+        //     { "name": "Bob", "store": "Big Co.", "state": "NY", "spend": 75 },
+        //     { "name": "Alice", "store": "Acme", "state": "FL", "spend": 200 },
+        //     { "name": "Alice", "store": "Big Co.", "state": "NY", "spend": 350 },
+        // ];
+
+        // var ndx = crossfilter(transactionsData);
+
+        // var name_dim = ndx.dimension(dc.pluck("name"));
+        // var total_spend_per_person = name_dim.group().reduceSum(dc.pluck("spend"));
+
+        // dc.barChart("#spend_per_person_chart")
+        //     .width(400)
+        //     .height(200)
+        //     .margins({ top: 15, right: 60, bottom: 40, left: 60 })
+        //     .dimension(name_dim)
+        //     .group(total_spend_per_person)
+        //     .transitionDuration(1000)
+        //     .x(d3.scale.ordinal())
+        //     .xUnits(dc.units.ordinal)
+        //     .xAxisLabel("How much did each person spend?")
+        //     .yAxis().ticks(4);
+
+        // var store_dim = ndx.dimension(dc.pluck("store"));
+        // var total_spend_per_store = store_dim.group().reduceSum(dc.pluck("spend"));
+
+        // dc.barChart("#spend_per_store_chart")
+        //     .width(400)
+        //     .height(200)
+        //     .margins({ top: 15, right: 60, bottom: 40, left: 60 })
+        //     .dimension(store_dim)
+        //     .group(total_spend_per_store)
+        //     .transitionDuration(1000)
+        //     .x(d3.scale.ordinal())
+        //     .xUnits(dc.units.ordinal)
+        //     .xAxisLabel("Which store did they spend the most money in?")
+        //     .yAxis().ticks(4);
+
+        // var state_dim = ndx.dimension(dc.pluck("state"));
+        // var total_spend_per_state = state_dim.group().reduceSum(dc.pluck("spend"));
+
+        // dc.barChart("#spend_per_state_chart")
+        //     .width(400)
+        //     .height(200)
+        //     .margins({ top: 15, right: 60, bottom: 40, left: 60 })
+        //     .dimension(state_dim)
+        //     .group(total_spend_per_state)
+        //     .transitionDuration(1000)
+        //     .x(d3.scale.ordinal())
+        //     .xUnits(dc.units.ordinal)
+        //     .xAxisLabel("Where was all this money spent?")
+        //     .yAxis().ticks(4);
+
+        queue()
+            .defer(d3.json, "data/transactions.json")
+            .await(makeCharts);
+
+        function makeCharts(error, transactionsData) {
+            var ndx = crossfilter(transactionsData);
+            var name_dim = ndx.dimension(dc.pluck("name"));
+
+            // var average_spend_per_person = name_dim.group().reduce(adder, reducer, initialiser);
+            var average_spend_per_person = name_dim.group().reduce(
+
+                // ADD A FACT (AKA DATA ENTRY)
+
+                function(p, v) {
+                    p.count++;
+                    p.total += v.spend;
+                    p.average = p.total / p.count;
+                    return p;
+                },
+
+                // REMOVE A FACT (AKA DATA ENTRY)
+
+                function(p, v) {
+                    p.count--;
+                    if (p.count == 0) {
+                        p.total = 0;
+                        p.average = 0;
+                    }
+                    else {
+                        p.total -= v.spend;
+                        p.average = p.total / p.count;
+                    }
+                    return p;
+                },
+
+                // INITIALISE THE REDUCER
+
+                function() {
+                    return {
+                        count: 0,
+                        total: 0,
+                        average: 0
+                    };
+                }
+
+            );
+
+            console.log(average_spend_per_person.all());
+
+            var averageSpendPerPersonChart = dc.barChart("#spend_per_person_chart")
+            averageSpendPerPersonChart
+                .width(600)
+                .height(380)
+                .margins({ top: 10, right: 50, bottom: 50, left: 65 })
+                .dimension(name_dim)
+                .group(average_spend_per_person)
+                .transitionDuration(3000)
+                .x(d3.scale.ordinal())
+                .xUnits(dc.units.ordinal)
+                .valueAccessor(function(d) {
+                    return d.value.average;
+                })
+                .xAxisLabel("CUSTOMER NAME")
+                .yAxisLabel("AVERAGE CUSTOMER SPEND ($)");
+
+            // // dc.pieChart("#spend_per_person_chart")
+            // //     .height(300)
+            // //     .radius(120)
+            // //     .transitionDuration(3000)
+            // //     .dimension(name_dim)
+            // //     .group(total_spend_per_person);
+
+            // var store_dim = ndx.dimension(dc.pluck("store"));
+            // var total_spend_per_store = store_dim.group().reduceSum(dc.pluck("spend"));
+
+            // dc.pieChart("#spend_per_store_chart")
+            //     .height(300)
+            //     .radius(120)
+            //     .transitionDuration(1000)
+            //     .dimension(store_dim)
+            //     .group(total_spend_per_store);
+
+            // var state_dim = ndx.dimension(dc.pluck("state"));
+            // var total_spend_per_state = state_dim.group().reduceSum(dc.pluck("spend"));
+
+            // dc.pieChart("#spend_per_state_chart")
+            //     .height(300)
+            //     .radius(120)
+            //     .transitionDuration(5000)
+            //     .dimension(state_dim)
+            //     .group(total_spend_per_state);
+
+            var parseDate = d3.time.format("%d/%m/%Y").parse;
+            transactionsData.forEach(function(d) {
+                d.date = parseDate(d.date);
+            });
+
+            var date_dim = ndx.dimension(dc.pluck("date"));
+            var total_spend_per_month = date_dim.group().reduceSum(dc.pluck("spend"));
+
+            var minDate = date_dim.bottom(1)[0].date;
+            var maxDate = date_dim.top(1)[0].date;
+
+            dc.lineChart("#spend_per_month_chart")
+                .width(1000)
+                .height(400)
+                .margins({ top: 30, right: 30, bottom: 30, left: 50 })
+                .transitionDuration(5000)
+                .dimension(date_dim)
+                .group(total_spend_per_month)
+                .x(d3.time.scale().domain([minDate, maxDate]))
+                .xAxisLabel("Month")
+                .yAxisLabel("Spend ($)")
+                .yAxis().ticks(4);
+
+            function spendByNamePerMonth(name) {
+                return function(d) {
+                    if (d.name === name) {
+                        return +d.spend;
+                    }
+                    else {
+                        return 0;
+                    }
+                };
+            }
+
+            var tomSpendPerMonth = date_dim.group().reduceSum(spendByNamePerMonth("Tom"));
+
+            var bobSpendPerMonth = date_dim.group().reduceSum(spendByNamePerMonth("Bob"));
+
+            var aliceSpendPerMonth = date_dim.group().reduceSum(spendByNamePerMonth("Alice"));
+
+            var compositeChart = dc.compositeChart("#spend_per_person_per_month_composite_chart");
+
+            compositeChart
+                .width(1000)
+                .height(400)
+                .dimension(date_dim)
+                .margins({ top: 30, right: 30, bottom: 50, left: 50 })
+                .transitionDuration(5000)
+                .x(d3.time.scale().domain([minDate, maxDate]))
+                .xAxisLabel("Month")
+                .yAxisLabel("Spend ($)")
+                .legend(dc.legend().x(100).y(40).itemHeight(15).gap(5))
+                .renderHorizontalGridLines(true)
+                .compose([
+                    dc.lineChart(compositeChart)
+                    .colors("chartreuse")
+                    .group(tomSpendPerMonth, "Tom"),
+                    dc.lineChart(compositeChart)
+                    .colors("darkslategrey")
+                    .group(bobSpendPerMonth, "Bob"),
+                    dc.lineChart(compositeChart)
+                    .colors("crimson")
+                    .group(aliceSpendPerMonth, "Alice")
+                ])
+                .brushOn(false);
+                // .yAxis().ticks(4)
+
+            var spendByNameInStoreA = name_dim.group().reduceSum(function(d) {
+                if (d.store === "A") {
+                    return +d.spend;
+                }
+                else {
+                    return 0;
+                }
+            });
+
+            var spendByNameInStoreB = name_dim.group().reduceSum(function(d) {
+                if (d.store === "B") {
+                    return +d.spend;
+                }
+                else {
+                    return 0;
+                }
+            });
+
+            var stackedChart = dc.barChart("#spend_per_person_per_store_stacked_chart");
+
+            stackedChart
+                .width(700)
+                .height(600)
+                .dimension(name_dim)
+                .margins({ top: 20, right: 100, bottom: 60, left: 60 })
+                .group(spendByNameInStoreA, "Store A")
+                .stack(spendByNameInStoreB, "Store B")
+                .renderHorizontalGridLines(true)
+                .legend(dc.legend().x(620).y(75).itemHeight(15).gap(5))
+                .x(d3.scale.ordinal())
+                .xUnits(dc.units.ordinal)
+                .xAxisLabel("CUSTOMER NAME")
+                .yAxisLabel("CUSTOMER SPEND PER STORE ($)");
+
+            // stackedChart.margins().right = 100;
+
+            var spend_dim = ndx.dimension(function(d) {
+                return [d.date, d.spend, d.name];
+            });
+
+            var spend_group = spend_dim.group();
+            // var spend_group = spend_dim.group().reduceSum(dc.pluck('spend'));
+
+            var personColors = d3.scale.ordinal()
+                .domain(["Tom", "Bob", "Alice"])
+                .range(['chartreuse', 'darkslategrey', 'crimson']);
+
+            console.log(spend_group.all());
+
+            var spendChart = dc.scatterPlot('#transactions_over_time_scatterplot');
+            spendChart
+                .width(900)
+                .height(600)
+                .margins({ top: 20, right: 50, bottom: 60, left: 60 })
+                .x(d3.time.scale().domain([minDate, maxDate]))
+                .brushOn(false)
+                .symbolSize(12)
+                .clipPadding(10)
+                .dimension(spend_dim)
+                .group(spend_group)
+                .colorAccessor(function(d) {
+                    return d.key[2];
+                })
+                .colors(personColors)
+                .xAxisLabel('DATE')
+                .yAxisLabel('TRANSACTION AMOUNT ($)')
+                .title(function(d) {
+                    return d.key[2] + " spent $" + d.key[1];
+                });
+
+            var size_dim = ndx.dimension(function(d) {
+                if (d.spend >= 150) return "Big";
+                else return "Small";
+            });
+
+            var size_group = size_dim.group();
+
+            console.log(size_group.all());
+
+            var sizeOfTransactions = dc.pieChart('#big_vs_small_transactions_chart');
+            sizeOfTransactions
+                .height(300)
+                .radius(120)
+                .transitionDuration(1000)
+                .dimension(size_dim)
+                .group(size_group);
+
+            dc.renderAll();
+        }
+    </script>
+
+</body>
+
+</html>
